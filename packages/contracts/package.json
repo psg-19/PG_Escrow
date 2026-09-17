@@ -1,0 +1,17 @@
+{
+  "name": "@pg/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "hardhat": "^2.29.1",
+    "@openzeppelin/contracts": "^5.1.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^20.16.0"
+  }
+}
