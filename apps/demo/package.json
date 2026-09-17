@@ -1,0 +1,21 @@
+{
+  "name": "@pg/demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/demo.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pg/core": "*",
+    "@pg/db": "*",
+    "@pg/evidence": "*",
+    "@pg/judge": "*",
+    "viem": "^2.56.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
