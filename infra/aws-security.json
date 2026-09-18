@@ -1,0 +1,248 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "PG Escrow: one symmetric KMS key, private SSE-KMS evidence bucket, scoped runtime policy. No compute resources.",
+  "Resources": {
+    "EncryptionKey": {
+      "Type": "AWS::KMS::Key",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Description": "PG Escrow wallet and evidence protection",
+        "KeySpec": "SYMMETRIC_DEFAULT",
+        "KeyUsage": "ENCRYPT_DECRYPT",
+        "EnableKeyRotation": true,
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "EnableAccountIAMDelegation",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                }
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      }
+    },
+    "EncryptionAlias": {
+      "Type": "AWS::KMS::Alias",
+      "Properties": {
+        "AliasName": {
+          "Fn::Sub": "alias/${AWS::StackName}-escrow"
+        },
+        "TargetKeyId": {
+          "Ref": "EncryptionKey"
+        }
+      }
+    },
+    "EvidenceBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "BucketKeyEnabled": true,
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "aws:kms",
+                "KMSMasterKeyID": {
+                  "Fn::GetAtt": [
+                    "EncryptionKey",
+                    "Arn"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        }
+      }
+    },
+    "EvidenceBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "EvidenceBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "RequireTLS",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "EvidenceBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${EvidenceBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            },
+            {
+              "Sid": "RequireExplicitKMS",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:PutObject",
+              "Resource": {
+                "Fn::Sub": "${EvidenceBucket.Arn}/*"
+              },
+              "Condition": {
+                "StringNotEquals": {
+                  "s3:x-amz-server-side-encryption": "aws:kms"
+                }
+              }
+            },
+            {
+              "Sid": "RequireProjectKey",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:PutObject",
+              "Resource": {
+                "Fn::Sub": "${EvidenceBucket.Arn}/*"
+              },
+              "Condition": {
+                "StringNotEquals": {
+                  "s3:x-amz-server-side-encryption-aws-kms-key-id": {
+                    "Fn::GetAtt": [
+                      "EncryptionKey",
+                      "Arn"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "RuntimePolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "Description": "Attach to the backend role or local developer permission set; no administrator privileges",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "WalletEncryption",
+              "Effect": "Allow",
+              "Action": [
+                "kms:Encrypt",
+                "kms:Decrypt"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "EncryptionKey",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "StringEquals": {
+                  "kms:EncryptionContext:application": "pg-escrow",
+                  "kms:EncryptionContext:purpose": "custodial-wallet"
+                },
+                "Null": {
+                  "kms:EncryptionContext:userId": "false"
+                }
+              }
+            },
+            {
+              "Sid": "EvidenceObjects",
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject",
+                "s3:GetObject"
+              ],
+              "Resource": {
+                "Fn::Sub": "${EvidenceBucket.Arn}/evidence/*"
+              }
+            },
+            {
+              "Sid": "EvidenceDataKeys",
+              "Effect": "Allow",
+              "Action": [
+                "kms:GenerateDataKey",
+                "kms:Decrypt"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "EncryptionKey",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "StringEquals": {
+                  "kms:ViaService": {
+                    "Fn::Sub": "s3.${AWS::Region}.${AWS::URLSuffix}"
+                  },
+                  "kms:EncryptionContext:aws:s3:arn": {
+                    "Fn::GetAtt": [
+                      "EvidenceBucket",
+                      "Arn"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "KeyArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "EncryptionKey",
+          "Arn"
+        ]
+      }
+    },
+    "BucketName": {
+      "Value": {
+        "Ref": "EvidenceBucket"
+      }
+    },
+    "RuntimePolicyArn": {
+      "Value": {
+        "Ref": "RuntimePolicy"
+      }
+    },
+    "Region": {
+      "Value": {
+        "Ref": "AWS::Region"
+      }
+    }
+  }
+}
