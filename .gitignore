@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.local
+artifacts/
+cache/
+typechain-types/
+coverage/
+*.log
+.DS_Store
+pg-escrow.db
+*.db
+.next/
+next-env.d.ts
+uploads/
