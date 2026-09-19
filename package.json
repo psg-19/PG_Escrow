@@ -1,0 +1,28 @@
+{
+  "name": "pg-escrow",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Trustless PG rent & deposit escrow with an AI adjudicator",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "demo": "npm run start -w @pg/demo",
+    "api": "npm run start -w @pg/api",
+    "web": "npm run dev -w @pg/web",
+    "app": "node scripts/app.mjs",
+    "eval": "npm run eval -w @pg/judge",
+    "chain": "npm run node -w @pg/contracts",
+    "deploy": "npm run deploy -w @pg/api",
+    "judge:check": "npm run check -w @pg/judge",
+    "aws:check": "npm run aws:check -w @pg/api",
+    "aws:migrate-wallets": "npm run aws:migrate-wallets -w @pg/api"
+  }
+}
