@@ -1,0 +1,36 @@
+{
+  "name": "@pg/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/app.ts",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "deploy": "tsx src/deploy.ts",
+    "test": "vitest run",
+    "aws:check": "tsx src/aws-check.ts",
+    "aws:migrate-wallets": "tsx src/migrate-wallets.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-kms": "^3.1136.0",
+    "@aws-sdk/client-s3": "^3.1136.0",
+    "@hono/node-server": "^1.13.0",
+    "@libsql/client": "^0.15.15",
+    "@pg/core": "*",
+    "@pg/db": "*",
+    "@pg/evidence": "*",
+    "@pg/judge": "*",
+    "@types/qrcode": "^1.5.6",
+    "drizzle-orm": "^0.45.0",
+    "hono": "^4.13.0",
+    "qrcode": "^1.5.4",
+    "viem": "^2.56.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.9"
+  }
+}
